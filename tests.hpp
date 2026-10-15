@@ -5,6 +5,7 @@
 #include <cassert>
 #include <utility>
 #include <string>
+
 #include "UnqPtr.hpp"
 #include "ShrdPtr.hpp"
 #include "UnqPtrArray.hpp"
@@ -15,6 +16,7 @@
 #define GREEN_COLOR "\033[32m"
 #define CYAN_COLOR  "\033[36m"
 #define BOLD_COLOR  "\033[1m"
+
 
 inline int g_passedTestsCount = 0;
 

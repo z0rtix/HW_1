@@ -1,10 +1,11 @@
 #include <iostream>
-#include "tests.hpp"
 
+#include "tests.hpp"
+#include "benchmark.hpp"
 
 int main() {
     RunAllTests();
-    // RunBenchmarks();
+    RunBenchmarks();
 
     return 0;
 }

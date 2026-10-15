@@ -1,108 +1,103 @@
-#ifndef BENCHMARK_HPP
-#define BENCHMARK_HPP
-
+#include "benchmark.hpp"
 #include <iostream>
 #include <chrono>
-#include <memory>
-#include <vector>
 #include <iomanip>
 
 #include "UnqPtr.hpp"
 #include "ShrdPtr.hpp"
+#include "UnqPtrArray.hpp"
+#include "ShrdPtrArray.hpp"
 
+#define RESET_COLOR  "\033[0m"
+#define CYAN_COLOR   "\033[36m"
+#define YELLOW_COLOR "\033[33m"
+#define BOLD_COLOR   "\033[1m"
 
-using Clock = std::chrono::high_resolution_clock;
-
-inline long long BenchRaw(size_t n) {
-    volatile int sink = 0;
-    auto start = Clock::now();
-    for (size_t i = 0; i < n; i++) {
-        int* p = new int(i);
-        sink += *p;
-        delete p;
-    }
-    auto end = Clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+// Ассемблерный барьер — запрещает Clang/GCC выбрасывать цикл в 0 мс
+template <typename T>
+static void Escape(T const* p) {
+    asm volatile("" : : "g"(p) : "memory");
 }
 
-inline long long BenchOurUnq(size_t n) {
-    volatile int sink = 0;
-    auto start = Clock::now();
-    for (size_t i = 0; i < n; i++) {
-        auto p = MakeUnq<int>(i);
-        sink += *p;
-    }
-    auto end = Clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-}
+void RunBenchmarks() {
+    constexpr size_t kIterations = 1'000'000;
 
-inline long long BenchStdUnq(size_t n) {
-    volatile int sink = 0;
-    auto start = Clock::now();
-    for (size_t i = 0; i < n; i++) {
-        auto p = std::make_unique<int>(i);
-        sink += *p;
-    }
-    auto end = Clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-}
+    std::cout << "\n" << CYAN_COLOR << "==========================================================" << RESET_COLOR << "\n";
+    std::cout << BOLD_COLOR << "            БЕНЧМАРКИ ПРОИЗВОДИТЕЛЬНОСТИ                  " << RESET_COLOR << "\n";
+    std::cout << "  Количество операций: " << YELLOW_COLOR << kIterations << RESET_COLOR << " на каждый тест\n";
+    std::cout << CYAN_COLOR << "==========================================================" << RESET_COLOR << "\n\n";
 
-inline long long BenchOurShrd(size_t n) {
-    volatile int sink = 0;
-    auto start = Clock::now();
-    for (size_t i = 0; i < n; i++) {
-        auto p1 = MakeShrd<int>(i);
-        auto p2 = p1;
-        sink += *p2;
-    }
-    auto end = Clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-}
+    std::cout << std::left << std::setw(32) << "Тип операции" 
+              << std::setw(16) << "Время (мс)" 
+              << "Относительно сырого ptr\n";
+    std::cout << "----------------------------------------------------------\n";
 
-inline long long BenchStdShrd(size_t n) {
-    volatile int sink = 0;
-    auto start = Clock::now();
-    for (size_t i = 0; i < n; i++) {
-        auto p1 = std::make_shared<int>(i);
-        auto p2 = p1;
-        sink += *p2;
-    }
-    auto end = Clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-}
+    // 1. Сырой указатель
+    double raw_ms = 0.0;
+    {
+        auto start = std::chrono::steady_clock::now();
+        for (size_t i = 0; i < kIterations; ++i) {
+            int* p = new int(static_cast<int>(i));
+            Escape(p);
+            delete p;
+        }
+        auto end = std::chrono::steady_clock::now();
+        raw_ms = std::chrono::duration<double, std::milli>(end - start).count();
 
-inline void RunBenchmarks() {
-    std::vector<size_t> counts = {100'000, 1'000'000, 3'000'000};
-
-    std::cout << "--- Нагрузочные тесты (время в миллисекундах) ---\n\n";
-    std::cout << std::left 
-              << std::setw(12) << "N (кол-во)"
-              << std::setw(12) << "Сырые ptr"
-              << std::setw(12) << "Наш Unq"
-              << std::setw(14) << "std::unique"
-              << std::setw(12) << "Наш Shrd"
-              << std::setw(14) << "std::shared"
-              << "\n";
-    std::cout << std::string(76, '-') << "\n";
-
-    for (size_t n : counts) {
-        long long t_raw = BenchRaw(n);
-        long long t_our_unq = BenchOurUnq(n);
-        long long t_std_unq = BenchStdUnq(n);
-        long long t_our_shrd = BenchOurShrd(n);
-        long long t_std_shrd = BenchStdShrd(n);
-
-        std::cout << std::left 
-                  << std::setw(12) << n
-                  << std::setw(12) << t_raw
-                  << std::setw(12) << t_our_unq
-                  << std::setw(14) << t_std_unq
-                  << std::setw(12) << t_our_shrd
-                  << std::setw(14) << t_std_shrd
-                  << "\n";
+        std::cout << std::left << std::setw(32) << "Сырой указатель (new/delete)"
+                  << std::setw(16) << std::fixed << std::setprecision(2) << raw_ms 
+                  << "1.00x (база)\n";
     }
 
-    std::cout << "\nБенчмарк успешно завершён!\n";
-}
+    // 2. UnqPtr
+    {
+        auto start = std::chrono::steady_clock::now();
+        for (size_t i = 0; i < kIterations; ++i) {
+            auto p = MakeUnq<int>(static_cast<int>(i));
+            Escape(p.get());
+        }
+        auto end = std::chrono::steady_clock::now();
+        double unq_ms = std::chrono::duration<double, std::milli>(end - start).count();
+        double ratio = (raw_ms > 0.001) ? (unq_ms / raw_ms) : 1.0;
 
-#endif
+        std::cout << std::left << std::setw(32) << "UnqPtr (MakeUnq)"
+                  << std::setw(16) << std::fixed << std::setprecision(2) << unq_ms 
+                  << std::fixed << std::setprecision(2) << ratio << "x\n";
+    }
+
+    // 3. ShrdPtr
+    {
+        auto start = std::chrono::steady_clock::now();
+        for (size_t i = 0; i < kIterations; ++i) {
+            auto p = MakeShrd<int>(static_cast<int>(i));
+            Escape(p.get());
+        }
+        auto end = std::chrono::steady_clock::now();
+        double shrd_ms = std::chrono::duration<double, std::milli>(end - start).count();
+        double ratio = (raw_ms > 0.001) ? (shrd_ms / raw_ms) : 1.0;
+
+        std::cout << std::left << std::setw(32) << "ShrdPtr (MakeShrd)"
+                  << std::setw(16) << std::fixed << std::setprecision(2) << shrd_ms 
+                  << std::fixed << std::setprecision(2) << ratio << "x\n";
+    }
+
+    // 4. Массив UnqPtr<int[]>
+    {
+        constexpr size_t kArraySize = 64;
+        constexpr size_t kArrayIters = 200'000;
+
+        auto start = std::chrono::steady_clock::now();
+        for (size_t i = 0; i < kArrayIters; ++i) {
+            auto arr = MakeUnq<int[]>(kArraySize);
+            Escape(arr.get());
+        }
+        auto end = std::chrono::steady_clock::now();
+        double arr_ms = std::chrono::duration<double, std::milli>(end - start).count();
+
+        std::cout << std::left << std::setw(32) << "UnqPtr<int[]> (200k x 64 elem)"
+                  << std::setw(16) << std::fixed << std::setprecision(2) << arr_ms 
+                  << "[OK]\n";
+    }
+
+    std::cout << CYAN_COLOR << "==========================================================" << RESET_COLOR << "\n\n";
+}

@@ -157,8 +157,9 @@ class ShrdPtr {
 
 
 template <typename T, typename... Args>
+	requires (!std::is_array_v<T>)
 ShrdPtr<T> MakeShrd(Args&&... args) {
-    return ShrdPtr<T>(new T(std::forward<Args>(args)...));
+	return ShrdPtr<T>(new T(std::forward<Args>(args)...));
 }
 
 

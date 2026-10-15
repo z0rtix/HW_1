@@ -3,13 +3,8 @@
 
 
 int main() {
-    TestUnqPtr();
-    TestShrdPtr();
-    TestDynamicArray();
-
-    std::cout << "Все тесты пройдены успешно!\n\n";
-
-    RunBenchmarks();
+    RunAllTests();
+    // RunBenchmarks();
 
     return 0;
 }

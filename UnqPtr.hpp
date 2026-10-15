@@ -97,8 +97,9 @@ class UnqPtr {
 
 
 template <typename T, typename... Args>
+	requires (!std::is_array_v<T>)
 UnqPtr<T> MakeUnq(Args&&... args) {
-    return UnqPtr<T>(new T(std::forward<Args>(args)...));
+	return UnqPtr<T>(new T(std::forward<Args>(args)...));
 }
 
 

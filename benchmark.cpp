@@ -8,12 +8,13 @@
 #include "UnqPtrArray.hpp"
 #include "ShrdPtrArray.hpp"
 
+
 #define RESET_COLOR  "\033[0m"
 #define CYAN_COLOR   "\033[36m"
 #define YELLOW_COLOR "\033[33m"
 #define BOLD_COLOR   "\033[1m"
 
-// Ассемблерный барьер — запрещает Clang/GCC выбрасывать цикл в 0 мс
+
 template <typename T>
 static void Escape(T const* p) {
     asm volatile("" : : "g"(p) : "memory");
@@ -32,7 +33,6 @@ void RunBenchmarks() {
               << "Относительно сырого ptr\n";
     std::cout << "----------------------------------------------------------\n";
 
-    // 1. Сырой указатель
     double raw_ms = 0.0;
     {
         auto start = std::chrono::steady_clock::now();
@@ -49,7 +49,6 @@ void RunBenchmarks() {
                   << "1.00x (база)\n";
     }
 
-    // 2. UnqPtr
     {
         auto start = std::chrono::steady_clock::now();
         for (size_t i = 0; i < kIterations; ++i) {
@@ -65,7 +64,6 @@ void RunBenchmarks() {
                   << std::fixed << std::setprecision(2) << ratio << "x\n";
     }
 
-    // 3. ShrdPtr
     {
         auto start = std::chrono::steady_clock::now();
         for (size_t i = 0; i < kIterations; ++i) {
@@ -81,7 +79,6 @@ void RunBenchmarks() {
                   << std::fixed << std::setprecision(2) << ratio << "x\n";
     }
 
-    // 4. Массив UnqPtr<int[]>
     {
         constexpr size_t kArraySize = 64;
         constexpr size_t kArrayIters = 200'000;
